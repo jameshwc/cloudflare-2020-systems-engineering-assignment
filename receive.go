@@ -138,7 +138,45 @@ func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, su
 	// 纳秒=>毫秒
 	maxTimeFloat = float64(maxTime) / 1e6
 	minTimeFloat = float64(minTime) / 1e6
-	requestTimeFloat = float64(requestTime) / 1e9
+	requestTimeFloat = float64(requestT
+		func header() {
+			fmt.Printf("\n\n")
+			// 打印的时长都为毫秒 总请数
+			fmt.Println("─────┬───────┬───────┬───────┬────────┬────────┬────────┬────────┬────────")
+			result := fmt.Sprintf(" 耗时│ 并发数│ 成功数│ 失败数│   qps  │最长耗时│最短耗时│平均耗时│ 错误码")
+			fmt.Println(result)
+			// result = fmt.Sprintf("耗时(s)  │总请求数│成功数│失败数│QPS│最长耗时│最短耗时│平均耗时│错误码")
+			// fmt.Println(result)
+			fmt.Println("─────┼───────┼───────┼───────┼────────┼────────┼────────┼────────┼────────")
+		
+			return
+		}
+		
+		// 打印表格
+		func table(successNum, failureNum uint64, errCode map[int]int, qps, averageTime, maxTimeFloat, minTimeFloat, requestTimeFloat float64, chanIdLen int) {
+			// 打印的时长都为毫秒
+			result := fmt.Sprintf("%4.0fs│%7d│%7d│%7d│%8.2f│%8.2f│%8.2f│%8.2f│%v", requestTimeFloat, chanIdLen, successNum, failureNum, qps, maxTimeFloat, minTimeFloat, averageTime, printMap(errCode))
+			fmt.Println(result)
+		
+			return
+		}
+		
+		// 输出错误码、次数 节约字符(终端一行字符大小有限)
+		func printMap(errCode map[int]int) (mapStr string) {
+		
+			var (
+				mapArr []string
+			)
+			for key, value := range errCode {
+				mapArr = append(mapArr, fmt.Sprintf("%d:%d", key, value))
+			}
+		
+			sort.Strings(mapArr)
+		
+			mapStr = strings.Join(mapArr, ";")
+		
+			return
+		}ime) / 1e9
 
 	// 打印的时长都为毫秒
 	// result := fmt.Sprintf("请求总数:%8d|successNum:%8d|failureNum:%8d|qps:%9.3f|maxTime:%9.3f|minTime:%9.3f|平均时长:%9.3f|errCode:%v", successNum+failureNum, successNum, failureNum, qps, maxTimeFloat, minTimeFloat, averageTime, errCode)

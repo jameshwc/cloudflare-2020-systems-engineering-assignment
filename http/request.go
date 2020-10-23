@@ -1,4 +1,4 @@
-package main
+package http
 
 import (
 	"io"
@@ -12,14 +12,6 @@ type Request struct {
 	Body       string
 	BodyReader io.Reader
 	Timeout    time.Duration
-}
-
-type RequestResult struct {
-	Id        string
-	ChanId    uint64
-	Time      uint64
-	IsSucceed bool
-	ErrCode   int
 }
 
 func NewRequest(url, method, body string, timeout time.Duration) *Request {

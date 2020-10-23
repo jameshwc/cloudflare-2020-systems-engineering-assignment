@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"github.com/jameshwc/go-stress/http"
+	"github.com/jameshwc/go-stress/stress"
 )
 
 func main() {
@@ -27,6 +30,5 @@ func main() {
 		flag.Usage()
 		return
 	}
-
-	StartStressTest(concurrency, totalNumber, NewRequest(requestURL, "GET", "hello, world", 30*time.Second))
+	stress.StartTest(concurrency, totalNumber, http.NewRequest(requestURL, "GET", "hello, world", 30*time.Second))
 }
