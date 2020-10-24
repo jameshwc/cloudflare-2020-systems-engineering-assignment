@@ -6,9 +6,11 @@ It also supports profile websites, you can use it to stress test websites with c
 ## Install
 
 With ```make```:
+
 ```$ make ```
 
-or build manually:
+Or build manually:
+
 ```$ go build -o simple-http```
 
 ## Usage
