@@ -1,19 +1,76 @@
 package http
 
 import (
-	"io"
-	"strings"
-	"time"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/url"
+	"strconv"
 )
 
 type Request struct {
-	URL        string
-	Method     string
-	Body       string
-	BodyReader io.Reader
-	Timeout    time.Duration
+	Header map[string]string
+	Host   string
+	URL    *url.URL
+	Method string
+	// Body   io.Reader
 }
 
-func NewRequest(url, method, body string, timeout time.Duration) *Request {
-	return &Request{url, method, body, strings.NewReader(body), timeout}
+var (
+	ErrURLFormatIncorrect  = errors.New("url format not correct")
+	ErrHttpsNotImplemented = errors.New("https not implemented yet")
+	ErrVerbNotImplemented  = errors.New("valid verb but not implemented yet")
+	ErrVerbInvalid         = errors.New("invalid http verb")
+)
+
+func NewRequest(method, URL string) (*Request, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return nil, ErrURLFormatIncorrect
+	}
+
+	port := 0
+	switch u.Scheme {
+	case "http":
+		port = 80
+	case "https":
+		// port = 443
+		return nil, ErrHttpsNotImplemented
+	}
+
+	switch method {
+	case "GET":
+	case "POST", "DELETE", "PUT", "HEAD", "PATCH", "OPTIONS", "TRACE", "CONNECT":
+		return nil, ErrVerbNotImplemented
+	default:
+		return nil, ErrVerbInvalid
+	}
+
+	return &Request{make(map[string]string), u.Host + ":" + strconv.Itoa(port), u, method}, nil
+}
+
+func (r *Request) Send() (*Response, error) {
+	fmt.Println(r.Host)
+	conn, err := net.Dial("tcp", r.Host)
+	if err != nil {
+		return nil, err
+	}
+	dat := fmt.Sprintf("GET %s HTTP/1.1\r\n", r.URL.Path)
+	dat += fmt.Sprintf("Host: %v\r\n", r.URL.Host)
+	dat += fmt.Sprintf("Connection: close\r\n")
+	dat += fmt.Sprintf("\r\n")
+	_, err = conn.Write([]byte(dat))
+
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ioutil.ReadAll(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	conn.Close()
+	return ParseResponse(resp)
 }

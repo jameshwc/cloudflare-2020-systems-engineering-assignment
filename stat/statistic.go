@@ -7,12 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jameshwc/go-stress/http"
+	"github.com/jameshwc/go-stress/profile"
+	"github.com/jameshwc/go-stress/stat/median"
 )
 
 var exportPeriod = 1 * time.Second
 
-func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
+func Receive(concurrent uint64, ch <-chan *profile.Response, wg *sync.WaitGroup) {
 	defer func() {
 		wg.Done()
 	}()
@@ -24,12 +25,16 @@ func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
 		requestTime    uint64
 		maxTime        uint64
 		minTime        uint64
+		minSize        uint64
+		maxSize        uint64
 		successNum     uint64
 		failureNum     uint64
+		medianTime     float64
 		chanSize       int
 		chanIDs        = make(map[uint64]bool)
 	)
 
+	medianFinder := median.NewMedianFinder()
 	startTime := uint64(time.Now().UnixNano())
 
 	var statusCode = make(map[int]int)
@@ -41,7 +46,7 @@ func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
 			case <-ticker.C:
 				endTime := uint64(time.Now().UnixNano())
 				requestTime = endTime - startTime
-				go calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum, chanSize, statusCode)
+				go calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum, maxSize, minSize, chanSize, medianTime, statusCode)
 			case <-stopChan:
 				return
 			}
@@ -63,6 +68,18 @@ func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
 			minTime = data.Time
 		}
 
+		medianFinder.AddNum(median.HeapType(data.Time))
+
+		if maxSize <= data.Size {
+			maxSize = data.Size
+		}
+
+		if minSize == 0 {
+			minSize = data.Size
+		} else if minSize > data.Size {
+			minSize = data.Size
+		}
+
 		if data.IsSucceed == true {
 			successNum = successNum + 1
 		} else {
@@ -79,6 +96,7 @@ func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
 			chanIDs[data.ChanID] = true
 			chanSize++
 		}
+		medianTime = medianFinder.FindMedian()
 	}
 
 	stopChan <- true
@@ -86,22 +104,19 @@ func Receive(concurrent uint64, ch <-chan *http.Response, wg *sync.WaitGroup) {
 	endTime := uint64(time.Now().UnixNano())
 	requestTime = endTime - startTime
 
-	calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum, chanSize, statusCode)
+	calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum, maxSize, minSize, chanSize, medianFinder.FindMedian(), statusCode)
 
 	fmt.Printf("\n\n")
 
-	fmt.Println("*************************  结果 stat  ****************************")
-	fmt.Println("处理协程数量:", concurrent)
-	// fmt.Println("处理协程数量:", concurrent, "程序处理总时长:", fmt.Sprintf("%.3f", float64(processingTime/concurrent)/1e9), "秒")
-	fmt.Println("请求总数（并发数*请求数 -c * -n）:", successNum+failureNum, "总请求时间:", fmt.Sprintf("%.3f", float64(requestTime)/1e9),
-		"秒", "successNum:", successNum, "failureNum:", failureNum)
-
-	fmt.Println("*************************  结果 end   ****************************")
-
+	fmt.Println("*************************  Statistics  ****************************")
+	fmt.Println("Total Concurrent Number:", concurrent)
+	fmt.Println("Total Requests: -c * -n）:", successNum+failureNum, "Total Request Time: ", fmt.Sprintf("%.3f", float64(requestTime)/1e9),
+		"s", "# of success:", successNum, "# of failure:", failureNum)
+	fmt.Println("*******************************************************************")
 	fmt.Printf("\n\n")
 }
 
-func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum uint64, chanSize int, statusCode map[int]int) {
+func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, successNum, failureNum, maxSize, minSize uint64, chanSize int, medianTime float64, statusCode map[int]int) {
 	if processingTime == 0 {
 		processingTime = 1
 	}
@@ -112,26 +127,28 @@ func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, su
 		minTimeFloat     float64
 		requestTimeFloat float64
 	)
-
-	if successNum != 0 && concurrent != 0 {
-		averageTime = float64(processingTime) / float64(successNum*1e6)
+	total := successNum + failureNum
+	if total != 0 && concurrent != 0 {
+		averageTime = float64(processingTime) / float64(total*1e6)
 	}
 
 	maxTimeFloat = float64(maxTime) / 1e6
 	minTimeFloat = float64(minTime) / 1e6
+	medianTime = medianTime / 1e6
 	requestTimeFloat = float64(requestTime) / 1e9
-
-	table(successNum, failureNum, statusCode, averageTime, maxTimeFloat, minTimeFloat, requestTimeFloat, chanSize)
+	table(successNum, failureNum, maxSize, minSize, averageTime, medianTime, maxTimeFloat, minTimeFloat, requestTimeFloat, chanSize, statusCode)
 }
 
 func header() {
 	fmt.Printf("\n\n")
-	fmt.Println("─────┬───────┬───────┬────────┬────────┬────────┬────────────┬────────────┬────────────┬───────────")
-	fmt.Println(" Time│ Concur│  Total| Success│ Failure│ size   │Slowest Time│Fastest Time│Average Time│Status Code")
-	fmt.Println("─────┼───────┼───────┼────────┼────────┼────────┼────────────┼────────────┼────────────┼────────────")
+	fmt.Println("──────┬────────────┬───────┬─────────┬─────────┬──────────────┬───────────────┬──────────────┬──────────────┬─────────────────────┬────────────")
+	fmt.Println(" Time │ Concurrent │ Total | Success │ Failure │ Largest Size │ Smallest Size │ Fastest Time │ Slowest Time │ Average/Median Time │ Status Code")
+	fmt.Println("──────┼────────────┼───────┼─────────┼─────────┼──────────────┼───────────────┼──────────────┼──────────────┼─────────────────────┼────────────")
 }
-func table(successNum, failureNum uint64, statusCode map[int]int, averageTime, maxTimeFloat, minTimeFloat, requestTimeFloat float64, chanSize int) {
-	result := fmt.Sprintf("%4.0fs│%7d│%7d|%7d│%7d│%8.2f│%8.2f│%8.2f│%8.2f│%v", requestTimeFloat, chanSize, successNum+failureNum, successNum, failureNum, maxTimeFloat, minTimeFloat, averageTime, printMap(statusCode))
+func table(successNum, failureNum, maxSize, minSize uint64,
+	averageTime, medianTime, maxTimeFloat, minTimeFloat, requestTimeFloat float64, chanSize int, statusCode map[int]int) {
+	result := fmt.Sprintf("%5.0fs│%12d│%7d|%9d│%9d│%14d|%15d|%14.0f|%14.0f|%10.0f/%-10.0f|%v",
+		requestTimeFloat, chanSize, successNum+failureNum, successNum, failureNum, maxSize, minSize, minTimeFloat, maxTimeFloat, averageTime, medianTime, printMap(statusCode))
 	fmt.Println(result)
 }
 
