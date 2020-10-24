@@ -14,11 +14,13 @@ type Response struct {
 	TransferEncoding []string
 	Size             int
 	rawData          []byte
+	ErrorCode        string // cloudflare
 }
 
 var (
-	ErrContentLengthNaN = errors.New("Content-Length is not a number")
-	ErrStatusCodeNaN    = errors.New("Status Code is not a number")
+	ErrContentLengthNaN      = errors.New("Content-Length is not a number")
+	ErrStatusCodeNaN         = errors.New("Status Code is not a number")
+	ErrChunkedNotImplemented = errors.New("Chunked transfer-encoding not implemented yet")
 )
 
 func ParseResponse(b []byte) (*Response, error) {
@@ -54,6 +56,13 @@ func ParseResponse(b []byte) (*Response, error) {
 				return nil, ErrContentLengthNaN
 			}
 		}
+		if name == "Transfer-Encoding" && value == "chunked" {
+			return nil, ErrChunkedNotImplemented
+		}
 	}
-	return &Response{statusCode, contentLength, body, header, []string{}, len(b), b}, nil
+	errCode := ""
+	if strings.HasPrefix(body, "error code") {
+		errCode = strings.Split(body, "error code: ")[1]
+	}
+	return &Response{statusCode, contentLength, body, header, []string{}, len(b), b, errCode}, nil
 }

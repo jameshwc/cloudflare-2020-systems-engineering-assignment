@@ -51,12 +51,15 @@ func NewRequest(method, URL string) (*Request, error) {
 }
 
 func (r *Request) Send() (*Response, error) {
-	fmt.Println(r.Host)
 	conn, err := net.Dial("tcp", r.Host)
 	if err != nil {
 		return nil, err
 	}
-	dat := fmt.Sprintf("GET %s HTTP/1.1\r\n", r.URL.Path)
+	path := r.URL.Path
+	if path == "" {
+		path = "/"
+	}
+	dat := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
 	dat += fmt.Sprintf("Host: %v\r\n", r.URL.Host)
 	dat += fmt.Sprintf("Connection: close\r\n")
 	dat += fmt.Sprintf("\r\n")
@@ -70,7 +73,7 @@ func (r *Request) Send() (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	// fmt.Println(string(resp))
 	conn.Close()
 	return ParseResponse(resp)
 }

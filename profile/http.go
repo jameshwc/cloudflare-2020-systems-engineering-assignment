@@ -16,14 +16,14 @@ func ConcurrencyRequest(chanID uint64, ch chan<- *Response, totalNumber uint64, 
 		wg.Done()
 	}()
 	for i := uint64(0); i < totalNumber; i++ {
-		isSucceed, statusCode, requestTime, size := getResponse(request)
-		result := NewResponse(i, chanID, requestTime, size, isSucceed, statusCode)
+		isSucceed, statusCode, requestTime, size, errCode := getResponse(request)
+		result := NewResponse(i, chanID, requestTime, size, isSucceed, statusCode, errCode)
 		ch <- result
 	}
 	return
 }
 
-func request(method, url string, body io.Reader, timeout time.Duration) (statusCode int, size, requestTime uint64, err error) {
+func request(method, url string, body io.Reader, timeout time.Duration) (statusCode int, size, requestTime uint64, errCode string, err error) {
 	req, err := http.NewRequest(method, url)
 	if err != nil {
 		log.Println(err)
@@ -38,22 +38,23 @@ func request(method, url string, body io.Reader, timeout time.Duration) (statusC
 		return
 	}
 	statusCode = resp.StatusCode
+	errCode = resp.ErrorCode
 	size = uint64(resp.Size)
 	// size = calcResponseSize(resp)
 	return
 }
 
-func getResponse(r *Request) (bool, int, uint64, uint64) {
+func getResponse(r *Request) (bool, int, uint64, uint64, string) {
 	isSucceed := false
-	statusCode, size, requestTime, err := request(r.Method, r.URL, r.BodyReader, r.Timeout)
+	statusCode, size, requestTime, errCode, err := request(r.Method, r.URL, r.BodyReader, r.Timeout)
 	if err != nil {
 		log.Println(err)
 	} else {
-		if statusCode == 200 {
+		if statusCode == 200 && errCode == "" {
 			isSucceed = true
 		}
 	}
-	return isSucceed, statusCode, requestTime, size
+	return isSucceed, statusCode, requestTime, size, errCode
 }
 
 // func calcResponseSize(r *http.Response) uint64 {

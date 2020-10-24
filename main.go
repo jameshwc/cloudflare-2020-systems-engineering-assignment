@@ -42,6 +42,10 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(resp.Body)
+		if resp.ErrorCode != "" {
+			fmt.Println("error code: ", resp.ErrorCode)
+		} else {
+			fmt.Println(resp.Body)
+		}
 	}
 }

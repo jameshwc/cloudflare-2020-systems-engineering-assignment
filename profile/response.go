@@ -7,8 +7,9 @@ type Response struct {
 	Size       uint64
 	IsSucceed  bool
 	StatusCode int
+	ErrorCode  string
 }
 
-func NewResponse(ID, chanID, time, size uint64, isSucceed bool, statusCode int) *Response {
-	return &Response{ID, chanID, time, size, isSucceed, statusCode}
+func NewResponse(ID, chanID, time, size uint64, isSucceed bool, statusCode int, errCode string) *Response {
+	return &Response{ID, chanID, time, size, isSucceed, statusCode, errCode}
 }
