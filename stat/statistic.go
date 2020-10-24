@@ -10,8 +10,8 @@ import (
 
 	"log"
 
-	"github.com/jameshwc/go-stress/profile"
-	"github.com/jameshwc/go-stress/stat/median"
+	"github.com/jameshwc/simple-http/profile"
+	"github.com/jameshwc/simple-http/stat/median"
 )
 
 var exportPeriod = 1 * time.Second
@@ -127,8 +127,8 @@ func Receive(concurrent uint64, ch <-chan *profile.Response, wg *sync.WaitGroup)
 
 	fmt.Printf("\n\n")
 
-	fmt.Println("*************************  Statistics  ****************************")
-	fmt.Println("Total Concurrent Number:", concurrent)
+	fmt.Printf("*************************  Statistics  ****************************\n")
+	fmt.Printf("Total Concurrent Number: %d\n", concurrent)
 	fmt.Printf("Total Requests:( -c %d * -n %d）: %d\n", concurrent, total/concurrent, total)
 	fmt.Printf("Fastest/Slowest Time (ms): %.2f/%.2f\n", float64(minTime)/1e6, float64(maxTime)/1e6)
 	fmt.Printf("Mean/Median Time (ms): %.2f/%.2f\n", float64(processingTime)/float64(total*1e6), medianTime/1e6)

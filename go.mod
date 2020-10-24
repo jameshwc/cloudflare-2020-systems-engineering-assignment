@@ -1,5 +1,3 @@
-module github.com/jameshwc/go-stress
+module github.com/jameshwc/simple-http
 
 go 1.15
-
-require github.com/prometheus/common v0.14.0

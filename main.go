@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/jameshwc/go-stress/http"
-	"github.com/jameshwc/go-stress/profile"
-	"github.com/jameshwc/go-stress/stress"
+	"github.com/jameshwc/simple-http/http"
+	"github.com/jameshwc/simple-http/profile"
+	"github.com/jameshwc/simple-http/stress"
 )
 
 func main() {
@@ -21,13 +21,14 @@ func main() {
 		requestURL  string
 	)
 
-	flag.Uint64Var(&totalNumber, "profile", 0, "profile mode: assign the number of requests")
-	flag.Uint64Var(&concurrency, "c", 1, "profile mode: number of concurrency")
-	flag.StringVar(&requestURL, "url", "", "url")
+	flag.StringVar(&requestURL, "url", "", "(required) url")
+	flag.Uint64Var(&totalNumber, "profile", 0, "(optional) profile mode: assign the number of requests")
+	flag.Uint64Var(&concurrency, "c", 1, "(optional) profile mode: number of concurrency")
 	flag.Parse()
 	if requestURL == "" {
-		fmt.Printf("Usage: go run main.go -c 1 -n 1 -u https://www.google.com/ \n")
-		fmt.Printf("The parameter you assigned: -c %d -n %d -u %s \n", concurrency, totalNumber, requestURL)
+		fmt.Printf("Usage: ./simple-http -u http://cloudflare-2020-general-engineering-assignment.jameshwc.workers.dev/links \n")
+		fmt.Printf("Profile Usage: ./simple-http -u http://cloudflare-2020-general-engineering-assignment.jameshwc.workers.dev/links -profile 100 [-c 10 (default 1)]\n")
+		fmt.Printf("The parameter you assigned: -c %d -profile %d -u %s \n", concurrency, totalNumber, requestURL)
 		flag.Usage()
 		return
 	}

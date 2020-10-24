@@ -7,7 +7,7 @@ import (
 
 	"log"
 
-	"github.com/jameshwc/go-stress/http"
+	"github.com/jameshwc/simple-http/http"
 	// "net/http"
 )
 

@@ -1,12 +1,15 @@
 package http
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Request struct {
@@ -14,14 +17,14 @@ type Request struct {
 	Host   string
 	URL    *url.URL
 	Method string
+	Https  bool
 	// Body   io.Reader
 }
 
 var (
-	ErrURLFormatIncorrect  = errors.New("url format not correct")
-	ErrHttpsNotImplemented = errors.New("https not implemented yet")
-	ErrVerbNotImplemented  = errors.New("valid verb but not implemented yet")
-	ErrVerbInvalid         = errors.New("invalid http verb")
+	ErrURLFormatIncorrect = errors.New("url format not correct")
+	ErrVerbNotImplemented = errors.New("valid verb but not implemented yet")
+	ErrVerbInvalid        = errors.New("invalid http verb")
 )
 
 func NewRequest(method, URL string) (*Request, error) {
@@ -31,14 +34,17 @@ func NewRequest(method, URL string) (*Request, error) {
 	}
 
 	port := 0
+	https := false
 	switch u.Scheme {
 	case "http":
 		port = 80
 	case "https":
-		// port = 443
-		return nil, ErrHttpsNotImplemented
+		port = 443
+		https = true
+		// return nil, ErrHttpsNotImplemented
 	}
 
+	method = strings.ToUpper(method)
 	switch method {
 	case "GET":
 	case "POST", "DELETE", "PUT", "HEAD", "PATCH", "OPTIONS", "TRACE", "CONNECT":
@@ -47,14 +53,28 @@ func NewRequest(method, URL string) (*Request, error) {
 		return nil, ErrVerbInvalid
 	}
 
-	return &Request{make(map[string]string), u.Host + ":" + strconv.Itoa(port), u, method}, nil
+	return &Request{make(map[string]string), u.Host + ":" + strconv.Itoa(port), u, method, https}, nil
 }
 
 func (r *Request) Send() (*Response, error) {
-	conn, err := net.Dial("tcp", r.Host)
-	if err != nil {
-		return nil, err
+	if !r.Https {
+		conn, err := net.Dial("tcp", r.Host)
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+		return r.sendData(conn)
+	} else {
+		conn, err := tls.Dial("tcp", r.Host, &tls.Config{})
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+		return r.sendData(conn)
 	}
+}
+
+func (r *Request) sendData(conn io.ReadWriteCloser) (*Response, error) {
 	path := r.URL.Path
 	if path == "" {
 		path = "/"
@@ -63,8 +83,7 @@ func (r *Request) Send() (*Response, error) {
 	dat += fmt.Sprintf("Host: %v\r\n", r.URL.Host)
 	dat += fmt.Sprintf("Connection: close\r\n")
 	dat += fmt.Sprintf("\r\n")
-	_, err = conn.Write([]byte(dat))
-
+	_, err := conn.Write([]byte(dat))
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +92,5 @@ func (r *Request) Send() (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println(string(resp))
-	conn.Close()
 	return ParseResponse(resp)
 }

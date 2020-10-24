@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jameshwc/go-stress/profile"
-	"github.com/jameshwc/go-stress/stat"
+	"github.com/jameshwc/simple-http/profile"
+	"github.com/jameshwc/simple-http/stat"
 )
 
 func StartTest(concurrency, totalNumber uint64, request *profile.Request) {
