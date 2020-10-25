@@ -8,7 +8,6 @@ import (
 	"log"
 
 	"github.com/jameshwc/simple-http/http"
-	// "net/http"
 )
 
 func ConcurrencyRequest(chanID uint64, ch chan<- *Response, totalNumber uint64, wg *sync.WaitGroup, request *Request) {
@@ -31,7 +30,6 @@ func request(method, url string, body io.Reader, timeout time.Duration) (statusC
 	}
 	req.Header["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8"
 	startTime := time.Now()
-	// resp, err := http.Get(url)
 	resp, err := req.Send()
 	requestTime = uint64(time.Since(startTime))
 	if err != nil {
@@ -40,7 +38,6 @@ func request(method, url string, body io.Reader, timeout time.Duration) (statusC
 	statusCode = resp.StatusCode
 	errCode = resp.ErrorCode
 	size = uint64(resp.Size)
-	// size = calcResponseSize(resp)
 	return
 }
 
@@ -56,28 +53,3 @@ func getResponse(r *Request) (bool, int, uint64, uint64, string) {
 	}
 	return isSucceed, statusCode, requestTime, size, errCode
 }
-
-// func calcResponseSize(r *http.Response) uint64 {
-// 	n := uint64(0)
-// 	if r.ContentLength != -1 {
-// 		n += uint64(r.ContentLength)
-// 	} else if r.Body != nil {
-// 		body, err := io.Copy(ioutil.Discard, r.Body)
-// 		if err != nil {
-// 			return 0
-// 		}
-// 		n += uint64(body)
-// 	}
-// 	header := 0
-// 	for name, values := range r.Header {
-// 		header += len(name)
-// 		for _, value := range values {
-// 			header += len(value)
-// 		}
-// 	}
-// 	if len(r.TransferEncoding) != 0 {
-// 		header = header + len(r.TransferEncoding[0])
-// 		header = header + len("Transfer-Encoding")
-// 	}
-// 	return n + uint64(header)
-// }
