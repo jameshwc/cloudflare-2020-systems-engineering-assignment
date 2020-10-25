@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"runtime"
 	"time"
 
 	"github.com/jameshwc/simple-http/http"
@@ -13,7 +12,6 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(1)
 
 	var (
 		concurrency uint64
@@ -26,8 +24,8 @@ func main() {
 	flag.Uint64Var(&concurrency, "c", 1, "(optional) profile mode: number of concurrency")
 	flag.Parse()
 	if requestURL == "" {
-		fmt.Printf("Usage: ./simple-http -u http://cloudflare-2020-general-engineering-assignment.jameshwc.workers.dev/links \n")
-		fmt.Printf("Profile Usage: ./simple-http -u http://cloudflare-2020-general-engineering-assignment.jameshwc.workers.dev/links -profile 100 [-c 10 (default 1)]\n")
+		fmt.Printf("Usage: \n[single-request] ./simple-http -u $URL \n")
+		fmt.Printf("[profile] ./simple-http -u $URL -profile 100 [-c 10 (default 1)]\n\n")
 		fmt.Printf("The parameter you assigned: -c %d -profile %d -u %s \n", concurrency, totalNumber, requestURL)
 		flag.Usage()
 		return

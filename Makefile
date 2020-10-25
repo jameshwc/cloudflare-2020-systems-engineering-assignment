@@ -4,7 +4,7 @@ PROFILE_NUM="100"
 STRESS_NUM="100"
 STRESS_CONCURRENCY="100"
 
-.PHONY: default single profile stress
+.PHONY: default single profile stress clean
 default:
 	go build -o ${BINARY}
 

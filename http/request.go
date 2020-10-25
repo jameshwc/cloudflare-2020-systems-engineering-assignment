@@ -18,7 +18,6 @@ type Request struct {
 	URL    *url.URL
 	Method string
 	Https  bool
-	// Body   io.Reader
 }
 
 var (
