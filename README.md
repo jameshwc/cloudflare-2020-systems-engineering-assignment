@@ -38,8 +38,8 @@ First, for http package, I use ```net``` builtin library to build a TCP connecti
 
 To deal with a response, I parse raw bytes and follow the [HTTP/1.1 Protocol](https://tools.ietf.org/html/rfc2616#section-6.1) carefully. However, I don't handle the data carefully enough to avoid attacks such as [CRLF injection](https://www.acunetix.com/websitesecurity/crlf-injection/). But I think it's enough for most common sites. :)
 I made the package support ```Transfer-Encoding: chunked``` response. I've tested it with some sites and it worked like a charm. However I think more tests are needed to find out bugs since the logic is prone to errors (in my opinion).
-Speaking of tests, please forgive me for I didn't write tests in this project. I have spent too much time for this project to catch up with school work.
+Speaking of tests, please forgive me for I didn't write tests in this project. I have devoted too much time for this project to catch up with school work.
 
-The second part is profile & stress tests. I use goroutines to make concurrent requests. I run ```go -race``` to check if there's any race condition, and it only showed that data race in reading statistics. I think it's fine considering that the worst case is showing incorrect statistics at a moment (and it will output correct statistics eventually).
+The second part is profile & stress tests. I use goroutines to make concurrent requests to simulate high traffic. I run ```go -race``` to check if there's any race condition, and it only showed that data race in reading statistics. I think it's fine considering that the worst case is showing incorrect statistics at a moment (and it will output correct statistics eventually).
 
 By the way, to get median efficiently with a stream of statistics, I use ```running median``` technique which I learned in *LeetCode No.295. Find Median from Data Stream*, and it's interesting to see that advanced algorithm we learn can be used in real world. :)
