@@ -40,7 +40,6 @@ func NewRequest(method, URL string) (*Request, error) {
 	case "https":
 		port = 443
 		https = true
-		// return nil, ErrHttpsNotImplemented
 	}
 
 	method = strings.ToUpper(method)
@@ -56,21 +55,18 @@ func NewRequest(method, URL string) (*Request, error) {
 }
 
 func (r *Request) Send() (*Response, error) {
+	var conn io.ReadWriteCloser
+	var err error
 	if !r.Https {
-		conn, err := net.Dial("tcp", r.Host)
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
-		return r.sendData(conn)
+		conn, err = net.Dial("tcp", r.Host)
 	} else {
-		conn, err := tls.Dial("tcp", r.Host, &tls.Config{})
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
-		return r.sendData(conn)
+		conn, err = tls.Dial("tcp", r.Host, &tls.Config{})
 	}
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	return r.sendData(conn)
 }
 
 func (r *Request) sendData(conn io.ReadWriteCloser) (*Response, error) {
@@ -78,10 +74,12 @@ func (r *Request) sendData(conn io.ReadWriteCloser) (*Response, error) {
 	if path == "" {
 		path = "/"
 	}
+
 	dat := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
 	dat += fmt.Sprintf("Host: %v\r\n", r.URL.Host)
 	dat += fmt.Sprintf("Connection: close\r\n")
 	dat += fmt.Sprintf("\r\n")
+
 	_, err := conn.Write([]byte(dat))
 	if err != nil {
 		return nil, err

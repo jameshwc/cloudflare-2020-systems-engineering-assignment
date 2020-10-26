@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/jameshwc/simple-http/http"
 	"github.com/jameshwc/simple-http/profile"
@@ -31,7 +30,7 @@ func main() {
 		return
 	}
 	if totalNumber > 0 {
-		stress.StartTest(concurrency, totalNumber, profile.NewRequest(requestURL, "GET", "", 30*time.Second))
+		stress.StartTest(concurrency, totalNumber, profile.NewRequest(requestURL, "GET"))
 	} else {
 		req, err := http.NewRequest("GET", requestURL)
 		if err != nil {

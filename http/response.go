@@ -1,68 +1,162 @@
 package http
 
 import (
+	"bytes"
 	"errors"
 	"strconv"
 	"strings"
 )
 
 type Response struct {
-	StatusCode       int
-	ContentLength    int
-	Body             string
-	Header           map[string][]string
-	TransferEncoding []string
-	Size             int
-	rawData          []byte
-	ErrorCode        string // cloudflare
+	StatusCode   int
+	Body         string
+	Header       map[string][]string
+	ReasonPhrase string
+	Size         int
+	rawData      []byte
+	ErrorCode    string // cloudflare
 }
 
 var (
-	ErrContentLengthNaN      = errors.New("Content-Length is not a number")
-	ErrStatusCodeNaN         = errors.New("Status Code is not a number")
-	ErrChunkedNotImplemented = errors.New("Chunked transfer-encoding not implemented yet")
+	ErrContentLengthNaN                   = errors.New("Response Content-Length is not a number")
+	ErrStatusCodeNaN                      = errors.New("Response Status Code is not a number")
+	ErrChunkedNotImplemented              = errors.New("Response Chunked transfer-encoding not implemented yet")
+	ErrChunksReadError                    = errors.New("Response Chunks read error, please submit a issue")
+	ErrHeaderKeyValue                     = errors.New("Response headers not follow {$key: $value} format")
+	ErrHTTPResponseFormatError            = errors.New("Response not follow HTTP/1.1 protocol (RFC 2616)")
+	ErrContentLengthNegativeAndNotChunked = errors.New("Response Content-Length negative and Transfer-Encoding not chunked")
+	ErrContentLengthError                 = errors.New("Response Content Length incorrect")
 )
 
+// https://tools.ietf.org/html/rfc2616#section-6.1
 func ParseResponse(b []byte) (*Response, error) {
-	split := strings.Split(string(b), "\r\n")
-	body := ""
-	header := make(map[string][]string)
-	statusCode := 0
-	contentLength := -1
-	var err error
-	for id, h := range split {
-		if id == 0 {
-			s := strings.Split(h, " ")
-			statusCode, err = strconv.Atoi(s[1])
-			if err != nil {
-				return nil, ErrStatusCodeNaN
-			}
+
+	dat := bytes.SplitN(b, []byte{'\r', '\n', '\r', '\n'}, 2)
+	if len(dat) < 2 {
+		return nil, ErrHTTPResponseFormatError
+	}
+
+	statusCode, reasonPhrase, err := parseStatusLine(dat[0])
+	if err != nil {
+		return nil, err
+	}
+
+	headers, err := parseHeaders(dat[0])
+	if err != nil {
+		return nil, err
+	}
+
+	var body string
+
+	if v, ok := headers["Transfer-Encoding"]; ok && v[0] == "chunked" {
+
+		body, err = parseChunks(dat[1])
+		if err != nil {
+			return nil, err
+		}
+
+	} else if v, ok := headers["Content-Length"]; ok {
+
+		bodySize, err := strconv.Atoi(v[0])
+		if err != nil {
+			return nil, ErrContentLengthNaN
+		}
+
+		if bodySize < 0 {
+			return nil, ErrContentLengthNegativeAndNotChunked
+		}
+
+		if len(dat[1]) != bodySize {
+			return nil, ErrContentLengthError
+		}
+
+		body = string(dat[1])
+
+	}
+	errorCode := parseErrorCode(body)
+	return &Response{statusCode, body, headers, reasonPhrase, len(b), b, errorCode}, nil
+}
+
+func parseStatusLine(b []byte) (int, string, error) {
+
+	s := bytes.SplitN(b, []byte{' '}, 3)
+	if len(s) < 3 {
+		return 0, "", ErrHTTPResponseFormatError
+	}
+
+	statusCode, err := strconv.Atoi(string(s[1]))
+	if err != nil {
+		return 0, "", ErrStatusCodeNaN
+	}
+
+	return statusCode, string(s[2]), nil
+}
+func parseHeaders(dat []byte) (map[string][]string, error) {
+
+	h := make(map[string][]string)
+	headers := bytes.Split(dat, []byte{'\r', '\n'})
+
+	for i := range headers {
+
+		if i == 0 { // skip status line
 			continue
 		}
-		if len(h) == 0 {
-			body = split[id+1]
-			break
+
+		s := bytes.SplitN(headers[i], []byte{':', ' '}, 2)
+		if len(s) < 2 {
+			return nil, ErrHeaderKeyValue
 		}
-		s := strings.Split(h, ":")
-		name := s[0]
-		value := strings.TrimSpace(s[1])
-		if _, ok := header[name]; !ok {
-			header[name] = make([]string, 0)
+
+		key := string(s[0])
+		val := string(s[1])
+
+		if _, ok := h[key]; !ok {
+			h[key] = make([]string, 0)
 		}
-		header[name] = append(header[name], value)
-		if name == "Content-Length" {
-			contentLength, err = strconv.Atoi(value)
+
+		h[key] = append(h[key], val)
+	}
+
+	return h, nil
+}
+
+func parseChunks(b []byte) (string, error) {
+	i := 0
+	body := ""
+	var hex []byte
+
+	for {
+		if b[i] != '\r' {
+			hex = append(hex, b[i])
+			i++
+		} else {
+			i += 2
+			size, err := strconv.ParseInt(string(hex), 16, 64)
 			if err != nil {
-				return nil, ErrContentLengthNaN
+				return "", ErrChunksReadError
 			}
-		}
-		if name == "Transfer-Encoding" && value == "chunked" {
-			return nil, ErrChunkedNotImplemented
+			if size == 0 {
+				break
+			}
+
+			if i+int(size)+2 > len(b) { // add len("\r\n")
+				return "", ErrChunksReadError
+			}
+
+			body = body + string(b[i:i+int(size)])
+			i += int(size) + 2 // add size and len("\r\n")
+			hex = make([]byte, 0)
 		}
 	}
-	errCode := ""
+	return body, nil
+}
+
+func parseErrorCode(body string) (errCode string) {
 	if strings.HasPrefix(body, "error code") {
-		errCode = strings.Split(body, "error code: ")[1]
+		s := strings.SplitN(body, "error code: ", 2)
+		if len(s) == 2 {
+			errCode = s[1]
+		}
 	}
-	return &Response{statusCode, contentLength, body, header, []string{}, len(b), b, errCode}, nil
+	return
 }

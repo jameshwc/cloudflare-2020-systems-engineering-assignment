@@ -57,7 +57,7 @@ func Receive(concurrent uint64, ch <-chan *profile.Response, wg *sync.WaitGroup)
 		}
 	}()
 
-	header()
+	printHeader()
 
 	for data := range ch {
 		processingTime = processingTime + data.Time
@@ -168,16 +168,16 @@ func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, su
 	minTimeFloat = float64(minTime) / 1e6
 	medianTime = medianTime / 1e6
 	requestTimeFloat = float64(requestTime) / 1e9
-	table(successNum, failureNum, maxSize, minSize, averageTime, medianTime, maxTimeFloat, minTimeFloat, requestTimeFloat, chanSize, statusCode, errorCode)
+	printTable(successNum, failureNum, maxSize, minSize, averageTime, medianTime, maxTimeFloat, minTimeFloat, requestTimeFloat, chanSize, statusCode, errorCode)
 }
 
-func header() {
+func printHeader() {
 	fmt.Printf("\n\n")
 	fmt.Println("──────┬────────────┬───────┬───────────┬───────────┬──────────────┬───────────────┬──────────────┬──────────────┬─────────────────────┬────────────")
 	fmt.Println(" Time │ Concurrent │ Total |  Success  │  Failure  │ Largest Size │ Smallest Size │ Fastest Time │ Slowest Time │ Average/Median Time │ Status/Error Code")
 	fmt.Println("──────┼────────────┼───────┼───────────┼───────────┼──────────────┼───────────────┼──────────────┼──────────────┼─────────────────────┼────────────")
 }
-func table(successNum, failureNum, maxSize, minSize uint64,
+func printTable(successNum, failureNum, maxSize, minSize uint64,
 	averageTime, medianTime, maxTimeFloat, minTimeFloat, requestTimeFloat float64, chanSize int, statusCode map[int]int, errorCode map[int]int) {
 	total := successNum + failureNum
 	result := fmt.Sprintf("%5.0fs│%12d│%7d|%4d (%3.f%%)│%4d (%3.f%%)│%14d|%15d|%14.0f|%14.0f|%10.0f/%-10.0f|%v / %v",

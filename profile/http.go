@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"io"
 	"sync"
 	"time"
 
@@ -22,7 +21,7 @@ func ConcurrencyRequest(chanID uint64, ch chan<- *Response, totalNumber uint64, 
 	return
 }
 
-func request(method, url string, body io.Reader, timeout time.Duration) (statusCode int, size, requestTime uint64, errCode string, err error) {
+func request(method, url string) (statusCode int, size, requestTime uint64, errCode string, err error) {
 	req, err := http.NewRequest(method, url)
 	if err != nil {
 		log.Println(err)
@@ -43,7 +42,7 @@ func request(method, url string, body io.Reader, timeout time.Duration) (statusC
 
 func getResponse(r *Request) (bool, int, uint64, uint64, string) {
 	isSucceed := false
-	statusCode, size, requestTime, errCode, err := request(r.Method, r.URL, r.BodyReader, r.Timeout)
+	statusCode, size, requestTime, errCode, err := request(r.Method, r.URL)
 	if err != nil {
 		log.Println(err)
 	} else {
